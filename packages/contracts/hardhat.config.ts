@@ -38,19 +38,20 @@ const config: HardhatUserConfig = {
       initialBaseFeePerGas: 0,
       forking: {
         enabled: true,
-        url: 'https://sepolia.blast.io',
+        url: process.env?.BLAST_SEPOLIA_RPC_URL || 'https://sepolia.blast.io',
+        //url: process.env?.BLAST_MAINNET_RPC_URL || 'https://blast.io',
         blockNumber: 2582350
       },
     },
     blast_sepolia: {
-      url: 'https://sepolia.blast.io',
+      url: process.env?.BLAST_SEPOLIA_RPC_URL || 'https://sepolia.blast.io',
       accounts: [
         process.env.PRIVATE_KEY!,
         process.env.POINTS_OP_PRIVATE_KEY!
       ]
     },
     blast: {
-      url: 'https://sepolia.blast.io',
+      url: process.env?.BLAST_MAINNET_RPC_URL || 'https://blast.io',
       accounts: [
         process.env.PRIVATE_KEY!,
         process.env.POINTS_OP_PRIVATE_KEY!

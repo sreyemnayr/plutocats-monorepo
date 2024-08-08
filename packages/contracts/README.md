@@ -1,7 +1,7 @@
 # Plutocats Contracts
 
 ## Getting started
-Ensure that you have Node.js and Foundry installed.
+Ensure that you have Node.js, TypeScript, and Foundry installed.
 
 Install pnpm and all dependencies:
 ```
@@ -20,6 +20,8 @@ pnpm build
 A `.env` file must exist in this directory with the following variables:
 
 `PRIVATE_KEY` - Private key of the account that will deploy the contracts.
+`POINTS_OP_PRIVATE_KEY` - Private key of the account that will be the Points Operator.
+`ETHERSCAN_API_KEY` - Etherscan API key for verifying contracts.
 
 ## Run tests
 Tests require forking blast sepolia to run properly. If you run into rate limit errors

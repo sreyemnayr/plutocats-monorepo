@@ -3,7 +3,7 @@ import type { BigNumber, ContractFactory, ethers as ethersType } from 'ethers';
 import { ethers, utils } from 'ethers';
 import promptjs from 'prompt';
 import { deflateRawSync } from 'zlib';
-import { ContractName, ContractRow, DeployedContract } from '../types';
+import { ContractName, ContractRow, DeployedContract, UpgradedContractName } from '../types';
 
 promptjs.colors = false;
 promptjs.message = '> ';
@@ -78,7 +78,7 @@ export function dataToDescriptorInput(data: string[]): {
   };
 }
 
-export function printContractsTable(contracts: Record<ContractName, DeployedContract>) {
+export function printContractsTable(contracts: Record<ContractName, DeployedContract> | Record<UpgradedContractName, DeployedContract>) {
   console.table(
     Object.values<DeployedContract>(contracts).reduce(
       (acc: Record<string, ContractRow>, contract: DeployedContract) => {

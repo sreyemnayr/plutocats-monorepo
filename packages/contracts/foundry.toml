@@ -5,4 +5,4 @@ libs = ["lib"]
 solc = "0.8.19"
 [rpc_endpoints]
 testnet = "https://sepolia.blast.io"
-mainnet = ""
+mainnet = "https://blast.io"

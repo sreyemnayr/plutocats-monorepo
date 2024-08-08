@@ -130,6 +130,7 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
                 // 5% quorum default
                 args: [() => deployment.PlutocatsToken.address, () => deployment.PlutocatsDescriptor.address, () => deployment.PlutocatsReserveProxy.address, 1000],
             },
+            
 
         };
 
