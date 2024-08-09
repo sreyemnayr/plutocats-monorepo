@@ -7,7 +7,7 @@
 ///         1. Assign ownership of the PlutoCats, Reserve, and Descriptor smart contracts to ReserveGovernorV2.
 ///         2. Allow the Reserve to upgrade to v2, which adds the following functionality:
 ///             a. Adds a new `depositRoyalties()` public function which withdraws Blur/WETH royalties
-///                into the reserve and sends 50% of the Blur royalties to the team.
+///                into the reserve and sends 50% of the Blur royalties to the founders.
 ///             b. Pays a one-time bounty of 3 ETH to the developer of the upgraded Governor and Reserve contracts.
 
 pragma solidity >=0.8.0;

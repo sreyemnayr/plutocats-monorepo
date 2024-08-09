@@ -287,10 +287,10 @@ describe("Reserve contract V2", function () {
         const plutocatsReserveImplementation: PlutocatsReserveV2 = reserveFactory.attach(contractsV2.PlutocatsReserveV2.address);
 
         const DEV_ADDRESS = await plutocatsReserveImplementation.DEV_ADDRESS();
-        const TEAM_ADDRESS = await plutocatsReserveImplementation.TEAM_ADDRESS();
+        const FOUNDERS_ADDRESS = await plutocatsReserveImplementation.FOUNDERS_ADDRESS();
        
         let dev_balance = await ethers.provider.getBalance(DEV_ADDRESS);
-        let team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
         let dev_bounty = await plutocatsReserveImplementation.DEV_BOUNTY();
         expect(dev_bounty).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
@@ -301,7 +301,7 @@ describe("Reserve contract V2", function () {
         await reserveGovernor2.doUpgrade()
        
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
-        let new_team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         let new_dev_balance = await ethers.provider.getBalance(DEV_ADDRESS);
 
         // There should no longer be any royalties in the reserve
@@ -313,7 +313,7 @@ describe("Reserve contract V2", function () {
         expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))).sub(dev_bounty));
         
         // Team balance should increase by half of initial blur balance
-        expect(new_team_balance).to.be.eq(team_balance.add(blur_balance.div(2)));
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
         
         // Dev balance should increase by the dev bounty amount
         expect(new_dev_balance).to.be.eq(dev_balance.add(dev_bounty));
@@ -343,9 +343,9 @@ describe("Reserve contract V2", function () {
         expect(weth_balance).to.be.eq(0);
         expect(blur_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
 
-        const TEAM_ADDRESS = await plutocatsReserve.TEAM_ADDRESS();
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
        
-        let team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
         let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
@@ -353,7 +353,7 @@ describe("Reserve contract V2", function () {
         await plutocatsReserve.depositRoyalties();
 
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
-        let new_team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         
         // There should no longer be any royalties in the reserve
         expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
@@ -364,7 +364,7 @@ describe("Reserve contract V2", function () {
         expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
         
         // Team balance should increase by half of initial blur balance
-        expect(new_team_balance).to.be.eq(team_balance.add(blur_balance.div(2)));
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
     });
     it("It should claim royalties if only weth available", async function () {
         await reserveGovernor2.doUpgrade()
@@ -392,9 +392,9 @@ describe("Reserve contract V2", function () {
         expect(blur_balance).to.be.eq(0);
         expect(weth_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
 
-        const TEAM_ADDRESS = await plutocatsReserve.TEAM_ADDRESS();
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
        
-        let team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
         let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
@@ -402,7 +402,7 @@ describe("Reserve contract V2", function () {
         await plutocatsReserve.depositRoyalties();
 
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
-        let new_team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         
         // There should no longer be any royalties in the reserve
         expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
@@ -413,7 +413,7 @@ describe("Reserve contract V2", function () {
         expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
         
         // Team balance should increase by half of initial blur balance
-        expect(new_team_balance).to.be.eq(team_balance.add(blur_balance.div(2)));
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
     });
     it("It should claim royalties every time", async function () {
         await reserveGovernor2.doUpgrade()
@@ -430,7 +430,7 @@ describe("Reserve contract V2", function () {
 
         await mine(1);
 
-        const TEAM_ADDRESS = await plutocatsReserve.TEAM_ADDRESS();
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
 
         for (let i=0; i>10; i++){
             let blur_amt = ethers.utils.parseEther((Math.random() * 1.5 + 0.5).toFixed(18).toString());
@@ -445,21 +445,21 @@ describe("Reserve contract V2", function () {
             expect(blur_balance).to.be.eq(blur_amt);
             expect(weth_balance).to.be.eq(weth_amt);
 
-            let team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+            let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
             let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
             await plutocatsReserve.depositRoyalties();
 
             let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
-            let new_team_balance = await ethers.provider.getBalance(TEAM_ADDRESS);
+            let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
             expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
             expect(await blur.balanceOf(plutocatsReserve.address)).to.be.eq(0);
 
             expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
-                        
+
             // Team balance should increase by half of initial blur balance
-            expect(new_team_balance).to.be.eq(team_balance.add(blur_balance.div(2)));
+            expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
 
         }
         
