@@ -51,6 +51,9 @@ Points Operator: `0x67e4476f31f1e1Cd773FC02d78869D14542b379a`
 │   PlutocatsReserve    │ '0xe20b850C84EC0015aE498025eE1851859281515c' │ 
 │ PlutocatsReserveProxy │ '0x4eA682B94B7e13894C3d0b9afEbFbDd38CdACc3C' │ 
 │    ReserveGovernor    │ '0x8F0FE69903e90742336655d5fB3f8d4c7D033D66' │ 
-│    MarketBuyer        │ '0x33184D366D46013c33aA3E46e9710221b83Ac400' │ 
+│    MarketBuyer        │ '0x33184D366D46013c33aA3E46e9710221b83Ac400' |
+│  PlutocatsReserveV2   | '0x0000000000000000000000000000000000000000' |
+│  PlutocatsGovernorV2  | '0x0000000000000000000000000000000000000000' |
 └───────────────────────┴──────────────────────────────────────────────┴
 ```
+

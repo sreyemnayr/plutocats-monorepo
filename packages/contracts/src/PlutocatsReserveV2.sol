@@ -15,7 +15,7 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
     address public constant TEAM_ADDRESS = 0xec740561f99D0cF6EeCb9f7A84Cf35394425f63b;
     uint256 public constant TEAM_SHARE_BPS = 5000;
     address public constant DEV_ADDRESS = 0x3D2198fC3907e9D095c2D973D7EC3f42B7C62Dfc;
-    uint256 public constant DEV_SHARE_BPS = 100;
+    uint256 public constant DEV_BOUNTY = 3 ether;
 
     constructor() PlutocatsReserve() {
         _disableInitializers();
@@ -28,6 +28,7 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
         blurPoolAddress = _blurPoolAddress;
         wethAddress = _wethAddress;
         depositRoyalties();
+        _sendETHInternal(payable(DEV_ADDRESS), DEV_BOUNTY);
     }
 
     function _withdrawEth(address withdrawable) internal {
@@ -43,20 +44,24 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
     /// It then calculates 10% of this amount to send to the developer's address.
     /// Requires that the contract has enough balance to perform these operations.
     function depositRoyalties() public {
+        // Get current balance
         uint256 balance = address(this).balance;
+
+        // Withdraw royalties from blur pool
         _withdrawEth(blurPoolAddress);
-        _withdrawEth(wethAddress);
+        
+        // Get new balance
         uint256 newBalance = address(this).balance;
 
-        // Send 50% of royalties to team, 1% to developer of upgraded contract
+        // If there's a difference, send 50% of blur royalties to team
         if (newBalance > balance) {
             uint256 diff = newBalance - balance;
             uint256 teamShare = diff * TEAM_SHARE_BPS / 10000;
-            uint256 devShare = diff * DEV_SHARE_BPS / 10000;
-
-            _sendETHInternal(payable(DEV_ADDRESS), devShare);
             _sendETHInternal(payable(TEAM_ADDRESS), teamShare);
         }
+
+        // Withdraw royalties from weth
+        _withdrawEth(wethAddress);
     }
 }
 
