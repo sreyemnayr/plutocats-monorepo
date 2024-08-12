@@ -1,5 +1,6 @@
 import chai from 'chai';
 import { ethers, run } from 'hardhat';
+import type { BigNumber, Signer } from 'ethers';
 import { solidity } from 'ethereum-waffle';
 import { PlutocatsToken, PlutocatsReserve, PlutocatsReserveV2, PlutocatsDescriptor, MockWithdrawable, ReserveGovernorV2 } from '../../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -23,7 +24,7 @@ describe("Reserve contract V2", function () {
     let contracts: Record<ContractName, DeployedContract>;
     let contractsV2: Record<UpgradedContractName, DeployedContract>;
 
-    beforeEach(async function () {
+    const _beforeEach = (async function () {
         const [deployer] = await ethers.getSigners();
 
         contracts = await run('deploy', {
@@ -123,19 +124,38 @@ describe("Reserve contract V2", function () {
         // Make some initial deposits
     });
 
-    it("It should only allow quits if token approval is set first", async function () {
-        await reserveGovernor2.doUpgrade()
+    beforeEach(_beforeEach);
 
-        const price = await plutocatsToken.getPrice();
-        // Already minting one in the beforeEach
-        //await plutocatsToken.mint({ value: price });
+    describe("Only allow quits if token approval is set first", function () {
+        before(async function () {
+            await _beforeEach();
+            await reserveGovernor2.doUpgrade()
+        });
 
-        await expect(plutocatsReserve.quit([0])).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+        it("Should fail if no approval is set", async function () {
+            await expect(plutocatsReserve.quit([0])).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+        });
 
-        // approve and quit should work
-        await plutocatsToken.approve(plutocatsReserve.address, 0);
-        await expect(plutocatsReserve.quit([0])).to.not.be.reverted;
+        it("Should not fail if approval is set", async function () {
+            await plutocatsToken.approve(plutocatsReserve.address, 0);
+            await expect(plutocatsReserve.quit([0])).to.not.be.reverted;
+        });
+
     });
+
+    // it("It should only allow quits if token approval is set first", async function () {
+    //     await reserveGovernor2.doUpgrade()
+
+    //     const price = await plutocatsToken.getPrice();
+    //     // Already minting one in the beforeEach
+    //     //await plutocatsToken.mint({ value: price });
+
+    //     await expect(plutocatsReserve.quit([0])).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+
+    //     // approve and quit should work
+    //     await plutocatsToken.approve(plutocatsReserve.address, 0);
+    //     await expect(plutocatsReserve.quit([0])).to.not.be.reverted;
+    // });
 
     it("It should fail if sender does not own the tokens provided", async function () {
         await reserveGovernor2.doUpgrade()
@@ -445,5 +465,65 @@ describe("Reserve contract V2", function () {
         
     });
 
+    describe("Owner should be able to claim royalties from an arbitrary withdrawable contract", function () {
+        let s1: SignerWithAddress;
+        let other: SignerWithAddress;
+        let rS1;
+        let withdrawable: MockWithdrawable;
+        let weth_balance: BigNumber;
+        let blur_balance: BigNumber;
+        let withdrawable_balance: BigNumber;
+        let new_balance: BigNumber;
+        let balance: BigNumber;
+
+        beforeEach(async function () {
+            await _beforeEach();
+            [s1, other] = await ethers.getSigners();
+            await reserveGovernor2.doUpgrade()
+            rS1 = plutocatsReserve.connect(s1);
+            for (let i = 0; i < 10; i++) {
+                const price = await plutocatsToken.getPrice();
+                await plutocatsToken.mint({ value: price });
+            }
+            await mine(1);
+            const withdrawableFactory = await ethers.getContractFactory('MockWithdrawable');
+            withdrawable = await withdrawableFactory.deploy();
+            await withdrawable['deposit(address)'](plutocatsReserve.address, {value: ethers.BigNumber.from("3000000000000000000")});
+            balance = await ethers.provider.getBalance(plutocatsReserve.address);
+            await plutocatsReserve.depositRoyalties();
+            new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
+            weth_balance = await weth.balanceOf(plutocatsReserve.address);
+            blur_balance = await blur.balanceOf(plutocatsReserve.address);
+            withdrawable_balance = await withdrawable.balanceOf(plutocatsReserve.address);
+
+        });
+        it("Should have correct initial values", async function () {
+            expect(weth_balance).to.be.eq(0);
+            expect(blur_balance).to.be.eq(0);
+            expect(withdrawable_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
+            expect(new_balance).to.be.eq(balance);
+        });
+        it("Should fail if called by non-owner", async function () {
+            await expect(reserveGovernor2.connect(other).withdrawEthFrom(withdrawable.address)).to.be.reverted;
+        });
+        it("Should fail if called directly by non-owner", async function () {
+            await expect(await plutocatsReserve.owner()).to.be.eq(reserveGovernor2.address);
+            await expect(plutocatsReserve.connect(other).withdrawEthFrom(withdrawable.address)).to.be.reverted;
+        });
+        it("Should fail if called directly with non-withdrawable contract by owner", async function () {
+            await expect(plutocatsReserve.connect(wallet).withdrawEthFrom(plutocatsToken.address)).to.be.reverted;
+        });
+        it("Should fail if called directly with withdrawable contract by owner", async function () {
+            await expect(plutocatsReserve.connect(wallet).withdrawEthFrom(withdrawable.address)).to.be.reverted;
+        });
+        it("Should not fail if called on the governor, by the owner, with a withdrawable contract", async function () {
+            await reserveGovernor2.connect(wallet).withdrawEthFrom(withdrawable.address);
+            let new_new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
+            // Balance should be +3 ETH
+            expect(await withdrawable.balanceOf(plutocatsReserve.address)).to.be.eq(0);
+
+            expect(new_new_balance).to.be.eq(new_balance.add(ethers.BigNumber.from("3000000000000000000")));
+        });
+    });
 });
 

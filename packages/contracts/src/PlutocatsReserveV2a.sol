@@ -31,7 +31,7 @@ contract PlutocatsReserveV2A is PlutocatsReserve {
         _sendETHInternal(payable(DEV_ADDRESS), DEV_BOUNTY);
     }
 
-    function _withdrawEth(address withdrawable) internal {
+    function _withdrawEthFrom(address withdrawable) internal {
         uint256 balance = IWithdrawableEther(withdrawable).balanceOf(address(this));
         if (balance > 0) {
             IWithdrawableEther(withdrawable).withdraw(balance);
@@ -47,7 +47,7 @@ contract PlutocatsReserveV2A is PlutocatsReserve {
         uint256 balance = address(this).balance;
 
         // Withdraw royalties from blur pool
-        _withdrawEth(blurPoolAddress);
+        _withdrawEthFrom(blurPoolAddress);
         
         // Get new balance
         uint256 newBalance = address(this).balance;
@@ -60,7 +60,7 @@ contract PlutocatsReserveV2A is PlutocatsReserve {
         }
 
         // Withdraw royalties from weth
-        _withdrawEth(wethAddress);
+        _withdrawEthFrom(wethAddress);
     }
 }
 
