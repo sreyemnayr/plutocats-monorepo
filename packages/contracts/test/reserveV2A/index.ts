@@ -1,7 +1,7 @@
 import chai from 'chai';
 import { ethers, run } from 'hardhat';
 import { solidity } from 'ethereum-waffle';
-import { PlutocatsToken, PlutocatsReserve, PlutocatsReserveV2, PlutocatsDescriptor, MockWithdrawable, ReserveGovernorV2 } from '../../typechain';
+import { PlutocatsToken, PlutocatsReserve, PlutocatsReserveV2A, PlutocatsDescriptor, MockWithdrawable, ReserveGovernorV2 } from '../../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { time, mine} from "@nomicfoundation/hardhat-network-helpers";
 import { ContractName, UpgradedContractName, DeployedContract } from '../../tasks/types';
@@ -10,9 +10,9 @@ import { ContractName, UpgradedContractName, DeployedContract } from '../../task
 chai.use(solidity);
 const { expect } = chai;
 
-describe("Reserve contract V2", function () {
+describe("Reserve contract V2A", function () {
     let plutocatsToken: PlutocatsToken;
-    let plutocatsReserve: PlutocatsReserveV2;
+    let plutocatsReserve: PlutocatsReserveV2A;
     let plutocatsDescriptor: PlutocatsDescriptor;
     let wallet: SignerWithAddress;
     let reserveGovernor2: ReserveGovernorV2;
@@ -21,7 +21,7 @@ describe("Reserve contract V2", function () {
     let blur: MockWithdrawable;
 
     let contracts: Record<ContractName, DeployedContract>;
-    let contractsV2: Record<UpgradedContractName, DeployedContract>;
+    let contractsV2A: Record<UpgradedContractName, DeployedContract>;
 
     beforeEach(async function () {
         const [deployer] = await ethers.getSigners();
@@ -51,12 +51,12 @@ describe("Reserve contract V2", function () {
         const reserveFactory = await ethers.getContractFactory('PlutocatsReserve', deployer);
         const plutocatsReserveV1 = reserveFactory.attach(contracts.PlutocatsReserveProxy.address);
 
-        const reserveV2Factory = await ethers.getContractFactory('PlutocatsReserveV2', deployer);
+        const reserveV2AFactory = await ethers.getContractFactory('PlutocatsReserveV2A', deployer);
 
         const governorFactory = await ethers.getContractFactory('ReserveGovernor', deployer);
         let reserveGovernor = governorFactory.attach(contracts.ReserveGovernor.address);
 
-        const governorV2Factory = await ethers.getContractFactory('ReserveGovernorV2', deployer);
+        const governorV2AFactory = await ethers.getContractFactory('ReserveGovernorV2', deployer);
         
         const descriptorFactory = await ethers.getContractFactory('PlutocatsDescriptor', {
             libraries: {
@@ -77,12 +77,13 @@ describe("Reserve contract V2", function () {
 
         wallet = deployer;
 
-        contractsV2 = await run('deploy-v2-upgrades', {
+        contractsV2A = await run('deploy-v2-upgrades', {
             autodeploy: true,
             governor: contracts.ReserveGovernor.address,
             silent: true,
             blurPoolAddress: blur.address,
             wethAddress: weth.address,
+            onlylatest: false,
             local: true,
         });
 
@@ -93,29 +94,29 @@ describe("Reserve contract V2", function () {
 
         await mine(1);
         // Propose an upgrade of the governor to the new one.
-        await reserveGovernor.connect(wallet).propose(contractsV2.ReserveGovernorV2.address);
+        await reserveGovernor.connect(wallet).propose(contractsV2A.ReserveGovernorV2A.address);
         await mine(1);
 
         let period = await reserveGovernor.proposalPeriod();
 
         // Vote
-        await reserveGovernor.vote(contractsV2.ReserveGovernorV2.address, 1);
+        await reserveGovernor.vote(contractsV2A.ReserveGovernorV2A.address, 1);
         const cts = (await ethers.provider.getBlock('latest')).timestamp;
         const eightdays = ethers.BigNumber.from((cts + (86400 * 8)));
 
-        let prop = await reserveGovernor.proposal(contractsV2.ReserveGovernorV2.address, period);
+        let prop = await reserveGovernor.proposal(contractsV2A.ReserveGovernorV2A.address, period);
 
         // Wait 8 days
         await time.increaseTo(eightdays);
         await mine(1);
 
-        await reserveGovernor.settleVotes(contractsV2.ReserveGovernorV2.address);
+        await reserveGovernor.settleVotes(contractsV2A.ReserveGovernorV2A.address);
         await mine(1);
         
-        plutocatsReserve = reserveV2Factory.attach(contracts.PlutocatsReserveProxy.address);
+        plutocatsReserve = reserveV2AFactory.attach(contracts.PlutocatsReserveProxy.address);
 
         
-        reserveGovernor2 = governorV2Factory.attach(contractsV2.ReserveGovernorV2.address);
+        reserveGovernor2 = governorV2AFactory.attach(contractsV2A.ReserveGovernorV2A.address);
 
         // Make sure there's some eth in the reserve
         await wallet.sendTransaction({to: plutocatsReserve.address, value: ethers.BigNumber.from("3300000000000000000")});
@@ -284,14 +285,14 @@ describe("Reserve contract V2", function () {
         expect(weth_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
         expect(blur_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
 
-        const reserveFactory = await ethers.getContractFactory('PlutocatsReserveV2', wallet);
-        const plutocatsReserveImplementation: PlutocatsReserveV2 = reserveFactory.attach(contractsV2.PlutocatsReserveV2.address);
+        const reserveFactory = await ethers.getContractFactory('PlutocatsReserveV2A', wallet);
+        const plutocatsReserveImplementation: PlutocatsReserveV2A = reserveFactory.attach(contractsV2A.PlutocatsReserveV2A.address);
 
         const DEV_ADDRESS = await plutocatsReserveImplementation.DEV_ADDRESS();
-        
+        const FOUNDERS_ADDRESS = await plutocatsReserveImplementation.FOUNDERS_ADDRESS();
        
         let dev_balance = await ethers.provider.getBalance(DEV_ADDRESS);
-        
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
         let dev_bounty = await plutocatsReserveImplementation.DEV_BOUNTY();
         expect(dev_bounty).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
@@ -302,6 +303,7 @@ describe("Reserve contract V2", function () {
         await reserveGovernor2.doUpgrade()
        
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         let new_dev_balance = await ethers.provider.getBalance(DEV_ADDRESS);
 
         // There should no longer be any royalties in the reserve
@@ -310,8 +312,11 @@ describe("Reserve contract V2", function () {
 
         expect(new_balance).to.be.gt(balance);
 
-        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance)).sub(dev_bounty));
-                
+        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))).sub(dev_bounty));
+        
+        // Team balance should increase by half of initial blur balance
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
+        
         // Dev balance should increase by the dev bounty amount
         expect(new_dev_balance).to.be.eq(dev_balance.add(dev_bounty));
     });
@@ -340,13 +345,17 @@ describe("Reserve contract V2", function () {
         expect(weth_balance).to.be.eq(0);
         expect(blur_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
 
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
        
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
+
         let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
         // Deposit the royalties
         await plutocatsReserve.depositRoyalties();
 
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         
         // There should no longer be any royalties in the reserve
         expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
@@ -354,8 +363,10 @@ describe("Reserve contract V2", function () {
 
         expect(new_balance).to.be.gt(balance);
 
-        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance)));
+        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
         
+        // Team balance should increase by half of initial blur balance
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
     });
     it("It should claim royalties if only weth available", async function () {
         await reserveGovernor2.doUpgrade()
@@ -383,6 +394,9 @@ describe("Reserve contract V2", function () {
         expect(blur_balance).to.be.eq(0);
         expect(weth_balance).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
 
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
+       
+        let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
 
         let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
@@ -390,6 +404,7 @@ describe("Reserve contract V2", function () {
         await plutocatsReserve.depositRoyalties();
 
         let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
+        let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
         
         // There should no longer be any royalties in the reserve
         expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
@@ -397,8 +412,10 @@ describe("Reserve contract V2", function () {
 
         expect(new_balance).to.be.gt(balance);
 
-        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance)));
+        expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
         
+        // Team balance should increase by half of initial blur balance
+        expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
     });
     it("It should claim royalties every time", async function () {
         await reserveGovernor2.doUpgrade()
@@ -415,6 +432,7 @@ describe("Reserve contract V2", function () {
 
         await mine(1);
 
+        const FOUNDERS_ADDRESS = await plutocatsReserve.FOUNDERS_ADDRESS();
 
         for (let i=0; i>10; i++){
             let blur_amt = ethers.utils.parseEther((Math.random() * 1.5 + 0.5).toFixed(18).toString());
@@ -429,17 +447,21 @@ describe("Reserve contract V2", function () {
             expect(blur_balance).to.be.eq(blur_amt);
             expect(weth_balance).to.be.eq(weth_amt);
 
+            let _balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
             let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
             await plutocatsReserve.depositRoyalties();
 
             let new_balance = await ethers.provider.getBalance(plutocatsReserve.address);
-            
+            let new__balance = await ethers.provider.getBalance(FOUNDERS_ADDRESS);
+
             expect(await weth.balanceOf(plutocatsReserve.address)).to.be.eq(0);
             expect(await blur.balanceOf(plutocatsReserve.address)).to.be.eq(0);
 
-            expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance)));
+            expect(new_balance).to.be.eq(balance.add(weth_balance.add(blur_balance.div(2))));
 
+            // Team balance should increase by half of initial blur balance
+            expect(new__balance).to.be.eq(_balance.add(blur_balance.div(2)));
 
         }
         

@@ -10,7 +10,7 @@ export type PlutocatsDescriptorContractNames = 'NFTDescriptorV2' | 'PlutocatsDes
 // prettier-ignore
 export type ContractName = PlutocatsDescriptorContractNames | 'PlutocatsSeeder' | 'PlutocatsToken' | 'PlutocatsReserve' | 'MockBlast' | 'PlutocatsReserveProxy' | 'ReserveGovernor';
 
-export type UpgradedContractName = 'PlutocatsReserveV2' | 'ReserveGovernorV2';
+export type UpgradedContractName = 'PlutocatsReserveV2' | 'ReserveGovernorV2' | 'PlutocatsReserveV2A' | 'ReserveGovernorV2A';
 
 export interface ContractDeployment {
     args?: (string | number | (() => string))[];

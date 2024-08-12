@@ -74,6 +74,7 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
             silent: true,
             blurPoolAddress: blur.address,
             wethAddress: weth.address,
+            local: true,
         });
 
         // mint a token so we have voting power

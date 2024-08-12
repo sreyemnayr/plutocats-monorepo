@@ -15,6 +15,8 @@
     "coverage": "npx hardhat coverage",
     "mint": "npx hardhat mint --network blast_sepolia",
     "deploy-and-configure": "npx hardhat deploy-and-configure --network blast",
+    "deploy-v2-upgrades": "npx hardhat deploy-v2-upgrades --network blast",
+    "deploy-v2-upgrades-local": "npx hardhat deploy-v2-upgrades --local --network anvil",
     "deploy-local": "npx hardhat deploy-and-configure --local --network anvil",
     "deploy-buyer": "npx hardhat deploy-buyer --plutocats 0xF084962cdC640ED5c7d4e35E52929dAC06B60F7C --network blast"
   },
