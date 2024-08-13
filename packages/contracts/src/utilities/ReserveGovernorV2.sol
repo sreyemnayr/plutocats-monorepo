@@ -17,7 +17,9 @@ import {IBootstrapV2} from "../interfaces/IBootstrapV2.sol";
 import {IUpgradeableReserve} from "../interfaces/IUpgradeable.sol";
 import {IGovernorMinimal} from "../interfaces/IGovernorMinimal.sol";
 import {ReserveGovernor} from "./ReserveGovernor.sol";
-import {IReserveV2} from "../interfaces/IReserveV2.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IBlast} from "../interfaces/IBlast.sol";
+// import {IReserveV2} from "../interfaces/IReserveV2.sol";
 
 contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
     // Make immutable for posterity
@@ -25,12 +27,14 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
     address public immutable BLUR_POOL_ADDRESS;
     address public immutable WETH_ADDRESS;
     bool public upgraded;
+    address public immutable BLAST_ADDRESS;
 
     constructor(
         address _oldGovernor,
         address _newReserveImplementation,
         address _blurPoolAddress,
-        address _wethAddress
+        address _wethAddress,
+        address _blastAddress
     )
         ReserveGovernor(
             IGovernorMinimal(_oldGovernor).votingToken(),
@@ -44,11 +48,13 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
         RESERVE_IMPLEMENTATION_ADDRESS = _newReserveImplementation;
         BLUR_POOL_ADDRESS = _blurPoolAddress;
         WETH_ADDRESS = _wethAddress;
+        BLAST_ADDRESS = _blastAddress;
     }
 
     // Allows governor owner to trigger a withdrawal of wrapped ETH from any arbitrary contract address
-    function withdrawEthFrom(address withdrawable) public onlyOwner {
-        IReserveV2(address(reserve)).withdrawEthFrom(withdrawable);
+    function withdrawEthFrom(address /* withdrawable */) public view onlyOwner {
+        revert NotImplemented();
+        // IReserveV2(address(reserve)).withdrawEthFrom(withdrawable);
     }
 
     // Performs upgrade on the reserve contract. 
@@ -70,5 +76,49 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
                 WETH_ADDRESS
             )
         );
+    }
+
+    /// Settle votes for configuring the reserve blast governor. If majority sentiment
+    /// is in favor, the governor is set and all future governance is disabled.
+    function settleVotes(address _newOwner) external override governanceNotLocked {
+        Proposal storage p = proposed[_newOwner][proposalPeriod];
+        uint256 totalVotes = p.forVotes + p.againstVotes;
+
+        if (p.newOwner == address(0)) {
+            revert InvalidProposal();
+        }
+
+        if (block.timestamp <= p.endTime) {
+            revert ProposalVoting();
+        }
+
+        if (p.settled) {
+            revert VotesSettled();
+        }
+
+        bool quorumMet = true;
+        if (totalVotes < p.quorum) {
+            quorumMet = false;
+        }
+
+        uint256 support = 1;
+        if (p.againstVotes >= p.forVotes) {
+            support = 0;
+        }
+
+        p.settled = true;
+        proposalPeriod += 1;
+
+        if (support == 1 && quorumMet) {
+            governanceLocked = true;
+            IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(votingToken));
+            IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(reserve));
+            
+            Ownable(address(reserve)).transferOwnership(_newOwner);
+            Ownable(address(votingToken)).transferOwnership(_newOwner);
+            Ownable(descriptor).transferOwnership(_newOwner);
+        }
+
+        emit SettledVotes(_newOwner, support, governanceLocked);
     }
 }

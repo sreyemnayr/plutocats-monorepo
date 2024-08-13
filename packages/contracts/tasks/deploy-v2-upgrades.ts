@@ -2,14 +2,17 @@ import { task, types } from 'hardhat/config';
 import { ContractDeployment, UpgradedContractName, DeployedContract } from './types';
 import promptjs from 'prompt';
 import { printContractsTable } from './utils';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
     .addParam('governor', 'The address of the existing governor contract', undefined, types.string, false)
     .addParam('blurPoolAddress', 'The address of the existing blur pool contract', undefined, types.string, false)
     .addParam('wethAddress', 'The address of the existing weth contract', undefined, types.string, false)
+    .addParam('blastAddress', 'The address of the existing blast contract', undefined, types.string, false)
     .addFlag('autodeploy', 'Deploy all contracts without user interaction')
     .addFlag('local', 'Deploy contracts locally')
     .addOptionalParam('onlylatest', 'Use only the latest governor and reserve contracts', true, types.boolean)
+    .addOptionalParam('forked', 'Forked mainnet', false, types.boolean)
     //.addOptionalParam('verify', 'Verify contracts on etherscan', false, types.boolean)
     .addOptionalParam(
         'silent',
@@ -17,9 +20,23 @@ task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
         false,
         types.boolean,
     )
-    .setAction(async ({ autodeploy, governor, blurPoolAddress, wethAddress, silent, onlylatest, local }, { run, ethers, network }) => {
-        const [deployer] = await ethers.getSigners();
-        const bal = await ethers.provider.getBalance(deployer.address);
+    .setAction(async ({ autodeploy, governor, blurPoolAddress, wethAddress, blastAddress, silent, onlylatest, local, forked }, { run, ethers, network }) => {
+        let deployer: SignerWithAddress;
+        
+        const PLUTOCATS_DEPLOYER = forked ? process.env.PLUTOCATS_DEPLOYER || (await ethers.getSigners())[0].address : (await ethers.getSigners())[0].address;
+        
+        if(forked) {
+            deployer = await ethers.getImpersonatedSigner(PLUTOCATS_DEPLOYER);
+            
+            await network.provider.send("hardhat_setBalance", [
+                PLUTOCATS_DEPLOYER,
+                "0x56bc75e2d63100000", // 100 ETH should be plenty
+                ]);
+            
+        } else {
+            deployer = await ethers.getSigner(PLUTOCATS_DEPLOYER);
+            
+        }
 
         const deployment: Record<UpgradedContractName, DeployedContract> = {} as Record<
             UpgradedContractName,
@@ -76,7 +93,7 @@ task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
         
 
         const governorFactory = await ethers.getContractFactory('ReserveGovernorV2', deployer);
-        const governorContract = await governorFactory.deploy(governor, reserveContract.address, blurPoolAddress, wethAddress, { gasPrice,});
+        const governorContract = await governorFactory.deploy(governor, reserveContract.address, blurPoolAddress, wethAddress, blastAddress, { gasPrice,});
         await governorContract.deployed();
 
         
@@ -101,7 +118,7 @@ task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
             const reserveFactoryA = await ethers.getContractFactory('PlutocatsReserveV2A', deployer);
             const reserveContractA = await reserveFactoryA.deploy({gasPrice,});
 
-            const governorContractA = await governorFactory.deploy(governor, reserveContractA.address, blurPoolAddress, wethAddress, { gasPrice,});
+            const governorContractA = await governorFactory.deploy(governor, reserveContractA.address, blurPoolAddress, wethAddress, blastAddress, { gasPrice,});
             await governorContractA.deployed();
 
             deployment.PlutocatsReserveV2A = {

@@ -20,6 +20,7 @@ task('populate-descriptor', 'Populates the descriptor with color palettes and Pl
     )
     .setAction(async ({ nftDescriptor, plutocatsDescriptor, silent }, { ethers, network }) => {
         const options = { gasLimit: network.name === 'anvil' ? 3000000000 : undefined };
+        
 
         const descriptorFactory = await ethers.getContractFactory('PlutocatsDescriptor', {
             libraries: {
@@ -27,6 +28,7 @@ task('populate-descriptor', 'Populates the descriptor with color palettes and Pl
             },
         });
         const descriptorContract = descriptorFactory.attach(plutocatsDescriptor);
+        
 
         const { bgcolors, palette, images } = ImageData;
         const { bodies, accessories, heads, eyes, glasses } = images;
@@ -39,6 +41,7 @@ task('populate-descriptor', 'Populates the descriptor with color palettes and Pl
 
         await descriptorContract.addManyBackgrounds(bgcolors);
         await descriptorContract.setPalette(0, `0x000000${palette.join('')}`);
+        
 
         await descriptorContract.addBodies(
             bodiesPage.encodedCompressed,
@@ -67,6 +70,7 @@ task('populate-descriptor', 'Populates the descriptor with color palettes and Pl
             glassesPage.itemCount,
             options,
         );
+       
 
         await descriptorContract.addAccessories(
             accessoriesPage.encodedCompressed,

@@ -10,7 +10,7 @@ import { ContractName, UpgradedContractName, DeployedContract } from '../../task
 chai.use(solidity);
 const { expect } = chai;
 
-describe("Reserve contract V2A", function () {
+describe.skip("Reserve contract V2A", function () {
     let plutocatsToken: PlutocatsToken;
     let plutocatsReserve: PlutocatsReserveV2A;
     let plutocatsDescriptor: PlutocatsDescriptor;

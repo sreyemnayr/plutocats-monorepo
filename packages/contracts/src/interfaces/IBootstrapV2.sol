@@ -9,4 +9,6 @@ pragma solidity >=0.8.0;
 interface IBootstrapV2 is IBootstrap {
     /// The structure of a proposal without nested mappings.
     error AlreadyUpgraded();
+
+    error NotImplemented();
 }

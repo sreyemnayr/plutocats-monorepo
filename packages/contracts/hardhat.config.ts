@@ -36,11 +36,11 @@ const config: HardhatUserConfig = {
     },
     hardhat: {
       initialBaseFeePerGas: 0,
+      chainId: process.env?.CHAIN_ID ? Number(process.env.CHAIN_ID) : 168587773,
       forking: {
         enabled: true,
-        url: process.env?.BLAST_SEPOLIA_RPC_URL || 'https://sepolia.blast.io',
-        //url: process.env?.BLAST_MAINNET_RPC_URL || 'https://blast.io',
-        blockNumber: 2582350
+        url: process.env?.CHAIN_ID == '81457' ? process.env?.BLAST_MAINNET_RPC_URL || 'https://rpc.blast.io' : process.env?.BLAST_SEPOLIA_RPC_URL || 'https://sepolia.blast.io',
+        blockNumber: process.env?.CHAIN_ID == '81457' ? 7334235 : 2582350,
       },
     },
     blast_sepolia: {
@@ -51,7 +51,7 @@ const config: HardhatUserConfig = {
       ]
     },
     blast: {
-      url: process.env?.BLAST_MAINNET_RPC_URL || 'https://blast.io',
+      url: process.env?.BLAST_MAINNET_RPC_URL || 'https://rpc.blast.io',
       accounts: [
         process.env.PRIVATE_KEY!,
         process.env.POINTS_OP_PRIVATE_KEY!

@@ -2,6 +2,10 @@ import { ContractDeployment, ContractName, DeployedContract } from './types';
 import { task, types } from 'hardhat/config';
 import promptjs from 'prompt';
 import { printContractsTable } from './utils';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { BLAST_BYTECODE } from '../predeployed';
+import { PlutocatsReserve__factory } from '../typechain';
+// import { impersonateAccount } from '@nomicfoundation/hardhat-network-helpers';
 
 promptjs.colors = false;
 promptjs.message = '> ';
@@ -31,7 +35,21 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
         false,
         types.boolean,
     )
-    .setAction(async ({ autodeploy, includepredeploy, mintStart, silent, blastpoints, blastpointsoperator }, { ethers }) => {
+    .setAction(async ({ autodeploy, includepredeploy, mintStart, silent, blastpoints, blastpointsoperator }, { ethers, network }) => {
+        const deployment: Record<ContractName, DeployedContract> = {} as Record<
+                ContractName,
+                DeployedContract
+            >;
+        let deployer: SignerWithAddress;
+        let operator: SignerWithAddress;
+
+        if (!blastpoints) {
+            blastpoints = process.env.BLAST_POINTS || '0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800';
+        }
+        if (!blastpointsoperator) {
+            blastpointsoperator = process.env.BLAST_POINTS_OPERATOR || (await ethers.getSigners())[1].address;
+        }
+
         if (!silent) {
             console.log(`
         
@@ -44,7 +62,7 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
         const PLUTOCATS_RESERVE_NONCE_OFFSET = includepredeploy ? 9 : 8;
         const PLUTOCATS_RESERVE_GOVERNOR_NONCE_OFFSET = includepredeploy ? 10 : 9;
 
-        const [deployer] = await ethers.getSigners();
+        [deployer] = await ethers.getSigners();
 
         const nonce = await deployer.getTransactionCount();
         const expectedPlutocatsArtAddress = ethers.utils.getContractAddress({
@@ -63,10 +81,7 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
             nonce: nonce + PLUTOCATS_RESERVE_GOVERNOR_NONCE_OFFSET,
         });
 
-        const deployment: Record<ContractName, DeployedContract> = {} as Record<
-            ContractName,
-            DeployedContract
-        >;
+        
 
         // if a mint time isn't define use the current timestamp
         let startMintingAt = mintStart;
@@ -136,8 +151,8 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
 
         for (const [name, contract] of Object.entries(contracts)) {
             if (name === 'MockBlast' && !includepredeploy) continue;
-
             let gasPrice = await ethers.provider.getGasPrice();
+            
             if (!autodeploy) {
                 const gasInGwei = Math.round(Number(ethers.utils.formatUnits(gasPrice, 'gwei')));
 
@@ -172,6 +187,7 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
             );
 
             const deploymentCost = deploymentGas.mul(gasPrice);
+
 
             if (!silent) {
                 console.log(
@@ -238,6 +254,7 @@ task('deploy', 'Deploys NFTDescriptor, PlutocatsDescriptor, PlutocatsSeeder, and
         if (!silent) {
             printContractsTable(deployment);
         }
+        
 
         return deployment;
     });

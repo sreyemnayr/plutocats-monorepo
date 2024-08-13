@@ -15,6 +15,8 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
     address public constant DEV_ADDRESS = 0x3D2198fC3907e9D095c2D973D7EC3f42B7C62Dfc;
     uint256 public constant DEV_BOUNTY = 3 ether;
 
+    error NotImplemented();
+
     constructor() PlutocatsReserve() {
         _disableInitializers();
     }
@@ -38,8 +40,9 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
 
     // Withdraw ETH from a contract that implements IWithdrawableEther
     // (has balanceOf(address) and withdraw(uint256) methods)
-    function withdrawEthFrom(address withdrawable) external onlyOwner {
-        _withdrawEthFrom(withdrawable);
+    function withdrawEthFrom(address /* withdrawable */) external view onlyOwner {
+        revert NotImplemented();
+        // _withdrawEthFrom(withdrawable);
     }
 
     /// @notice Claims royalties from BLUR_POOL and WETH contracts and sends a portion to the founders' address.

@@ -133,7 +133,7 @@ contract ReserveGovernor is IBootstrap, Ownable {
 
     /// Settle votes for configuring the reserve blast governor. If majority sentiment
     /// is in favor, the governor is set and all future governance is disabled.
-    function settleVotes(address _newOwner) external governanceNotLocked {
+    function settleVotes(address _newOwner) virtual external governanceNotLocked {
         Proposal storage p = proposed[_newOwner][proposalPeriod];
         uint256 totalVotes = p.forVotes + p.againstVotes;
 
