@@ -9,7 +9,7 @@
 ///             a. Adds a new `depositRoyalties()` public function which withdraws Blur/WETH royalties
 ///             b. Adds a new `withdrawEthFrom(address)` function that can only be called by the owner,
 ///                 allowing the unwrapping of ETH from any future royalty contract.
-///             c. Pays a one-time bounty of 3 ETH to the developer of the upgraded Governor and Reserve contracts.
+///             c. Pays a one-time bounty of 4 ETH to the developer of the upgraded Governor and Reserve contracts.
 
 pragma solidity >=0.8.0;
 
@@ -49,6 +49,7 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
         BLUR_POOL_ADDRESS = _blurPoolAddress;
         WETH_ADDRESS = _wethAddress;
         BLAST_ADDRESS = _blastAddress;
+        IBlast(BLAST_ADDRESS).configureClaimableGas();
     }
 
     // Allows governor owner to trigger a withdrawal of wrapped ETH from any arbitrary contract address
@@ -76,6 +77,17 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
                 WETH_ADDRESS
             )
         );
+    }
+
+    function claimGas(address _token) public governanceNotLocked {
+        IBlast(BLAST_ADDRESS).claimMaxGas(_token, address(reserve));
+    }
+
+    /// @dev Claim max gas for the reserve and voting token
+    function claimMaxGas() public governanceNotLocked {
+        claimGas(address(reserve));
+        claimGas(address(votingToken));
+        claimGas(address(this));
     }
 
     /// Settle votes for configuring the reserve blast governor. If majority sentiment

@@ -8,6 +8,7 @@ pragma solidity >=0.8.0;
 import {IPlutocatsTokenMultibuy} from "../interfaces/IPlutocatsTokenMultibuy.sol";
 import {IBlast} from "../interfaces/IBlast.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {IReserve} from "../interfaces/IReserve.sol";
 
 contract MarketMultiBuyer {
     using Address for address payable;
@@ -28,6 +29,7 @@ contract MarketMultiBuyer {
         blast.configureClaimableGas();
         blast.configureGovernor(msg.sender);
         reserve = _reserve;
+        plutocats.setApprovalForAll(address(reserve), true);
     }
 
     /// @dev Takes an integer amount of seconds and converts it to a wad amount of days.
@@ -66,6 +68,22 @@ contract MarketMultiBuyer {
         return count - 1;
     }
 
+    function recycleMultiple(uint256 amount) external payable {
+        uint256 price = plutocats.getPrice();
+        uint256[] memory mintedId = new uint256[](1);
+        IReserve reserveContract = IReserve(reserve);
+        for(uint256 i = 0; i < amount; i++) {
+            if(price > msg.value) {
+                payable(msg.sender).sendValue(msg.value);
+                return;
+            }
+            mintedId[0] = plutocats.mint{value: price}();
+            reserveContract.quit(mintedId);
+            price = plutocats.getPrice();
+        }
+        payable(msg.sender).sendValue(msg.value);
+    }
+
     function buyMultiple(uint256 amount) external payable returns (uint256, uint256, uint256) {
         uint256 price;
         uint256 mintedId;
@@ -92,4 +110,8 @@ contract MarketMultiBuyer {
 
         return (firstMintedId, mintedId, totalPrice);
     }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }

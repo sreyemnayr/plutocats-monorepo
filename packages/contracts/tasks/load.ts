@@ -38,7 +38,7 @@ task('load', 'Loads deployed contracts')
             operator = await ethers.getImpersonatedSigner(BLAST_POINTS_OPERATOR);
             await network.provider.send("hardhat_setBalance", [
                 PLUTOCATS_DEPLOYER,
-                "0x56bc75e2d63100000", // 100 ETH should be plenty
+                "0x21e19e0c9bab2400000", // 100 ETH should be plenty
                 ]);
             
         } else {

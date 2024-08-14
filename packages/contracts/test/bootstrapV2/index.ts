@@ -28,7 +28,7 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
         await reset(config.networks?.hardhat?.forking?.url, config.networks?.hardhat?.forking?.blockNumber)
         
         const network = await ethers.provider.getNetwork();
-        
+
         
         CHAIN_ID = network.chainId;
 
@@ -36,6 +36,10 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
 
         if (CHAIN_ID == 81457) { // MAINNET FORK, LOAD DEPLOYED CONTRACTS
             deployer = await ethers.getImpersonatedSigner(process.env.PLUTOCATS_DEPLOYER || '0xec740561f99D0cF6EeCb9f7A84Cf35394425f63b');
+            await ethers.provider.send("hardhat_setBalance", [
+                deployer.address,
+                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
+            ]);
 
             contracts = await run('load', {
                 testing: true
@@ -46,16 +50,15 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
             
             plutocatsToken = contracts.PlutocatsToken.instance as PlutocatsToken;
 
-            await ethers.provider.send("hardhat_setBalance", [
-                deployer.address,
-                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
-            ]);
-            
-    
             
         } else { // LOCAL FORK, DEPLOY FRESH
 
             [deployer] = await ethers.getSigners();
+            await ethers.provider.send("hardhat_setBalance", [
+                deployer.address,
+                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
+            ]);
+
             contracts = await run('deploy', {
                 autodeploy: true,
                 includepredeploy: true,
@@ -82,7 +85,7 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
             const price = await plutocatsToken.getPrice();
             await plutocatsToken.mint({ value: price });
 
-            await deployer.sendTransaction({to: contracts.PlutocatsReserveProxy.address, value: ethers.BigNumber.from("3300000000000000000")});
+            await deployer.sendTransaction({to: contracts.PlutocatsReserveProxy.address, value: ethers.BigNumber.from("4300000000000000000")});
         }
         
         const tokenFactory = await ethers.getContractFactory('PlutocatsToken', deployer);
@@ -130,18 +133,19 @@ describe("ReserveGovernor and Bootstrap process with upgrade to v2", function ()
         multiminter = await (await ethers.getContractFactory('MarketMultiBuyer', deployer)).deploy(plutocatsToken.address, contracts.PlutocatsReserveProxy.address, {gasPrice});
             
         if(tokensOwned < enough){
-            
             let amount = enough - tokensOwned;
             const price = await multiminter.estimateMaxPricePer(amount);
-            
-            await plutocatsToken.mint({ value: price });
 
+            await plutocatsToken.mint({ value: price });
+            
             while(amount > 0){
                 const max = Math.min(amount, 20);
                 await multiminter.connect(deployer).buyMultiple(max, { value: price.mul(max) });
                 amount -= max;
             }
         }
+        
+
 
         // Propose an upgrade of the governor to the new one.
         await reserveGovernor.connect(wallet).propose(contractsV2.ReserveGovernorV2.address);

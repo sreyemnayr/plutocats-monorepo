@@ -13,7 +13,7 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
     address public blurPoolAddress; // = 0xB772d5C5F4A2Eef67dfbc89AA658D2711341b8E5;
     address public wethAddress; // = 0x4300000000000000000000000000000000000004;
     address public constant DEV_ADDRESS = 0x3D2198fC3907e9D095c2D973D7EC3f42B7C62Dfc;
-    uint256 public constant DEV_BOUNTY = 3 ether;
+    uint256 public constant DEV_BOUNTY = 4 ether;
 
     error NotImplemented();
 

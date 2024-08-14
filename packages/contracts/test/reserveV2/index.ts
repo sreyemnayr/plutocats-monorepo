@@ -2,7 +2,7 @@ import chai from 'chai';
 import { ethers, run } from 'hardhat';
 import type { BigNumber, Signer } from 'ethers';
 import { solidity } from 'ethereum-waffle';
-import { PlutocatsToken, PlutocatsReserve, PlutocatsReserveV2, PlutocatsDescriptor, MockWithdrawable, ReserveGovernor, ReserveGovernorV2, MarketMultiBuyer } from '../../typechain';
+import { PlutocatsToken, PlutocatsReserve, PlutocatsReserveV2, PlutocatsDescriptor, MockWithdrawable, ReserveGovernor, ReserveGovernorV2, MarketMultiBuyer, MockBlast } from '../../typechain';
 import { PlutocatsToken__factory, PlutocatsReserve__factory, PlutocatsReserveV2__factory, PlutocatsDescriptor__factory, MockWithdrawable__factory, ReserveGovernorV2__factory } from '../../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { time, mine, reset} from "@nomicfoundation/hardhat-network-helpers";
@@ -19,6 +19,7 @@ describe("Reserve contract V2", function () {
     let plutocatsDescriptor: PlutocatsDescriptor;
     let wallet: SignerWithAddress;
     let reserveGovernor: ReserveGovernorV2;
+    let blast: MockBlast;
 
     let CHAIN_ID: number;
 
@@ -42,6 +43,10 @@ describe("Reserve contract V2", function () {
 
         if (CHAIN_ID == 81457) { // MAINNET FORK, LOAD DEPLOYED CONTRACTS
             deployer = await ethers.getImpersonatedSigner(process.env.PLUTOCATS_DEPLOYER || '0xec740561f99D0cF6EeCb9f7A84Cf35394425f63b');
+            await ethers.provider.send("hardhat_setBalance", [
+                deployer.address,
+                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
+            ]);
 
             contracts = await run('load', {
                 testing: true
@@ -51,17 +56,16 @@ describe("Reserve contract V2", function () {
             weth = MockWithdrawable__factory.connect(process.env?.WETH || "0x4200000000000000000000000000000000000004", deployer);
             
             plutocatsToken = contracts.PlutocatsToken.instance as PlutocatsToken;
-
-            await ethers.provider.send("hardhat_setBalance", [
-                deployer.address,
-                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
-            ]);
-            
-    
+            blast = contracts.MockBlast.instance as MockBlast;
             
         } else { // LOCAL FORK, DEPLOY FRESH
 
             [deployer] = await ethers.getSigners();
+            await ethers.provider.send("hardhat_setBalance", [
+                deployer.address,
+                "0x21e19e0c9bab2400000", // 100k ETH should be plenty
+            ]);
+
             contracts = await run('deploy', {
                 autodeploy: true,
                 includepredeploy: true,
@@ -69,6 +73,7 @@ describe("Reserve contract V2", function () {
                 blastpoints: '0x2fc95838c71e76ec69ff817983BFf17c710F34E0',
                 blastpointsoperator: deployer.address
             });
+            
             
             blur = await (await ethers.getContractFactory('MockWithdrawable', deployer)).deploy({gasPrice: await ethers.provider.getGasPrice(),});
             weth = MockWithdrawable__factory.connect(process.env?.WETH_SEPOLIA || "0x4200000000000000000000000000000000000023", deployer);
@@ -88,7 +93,7 @@ describe("Reserve contract V2", function () {
             const price = await plutocatsToken.getPrice();
             await plutocatsToken.mint({ value: price });
 
-            await deployer.sendTransaction({to: contracts.PlutocatsReserveProxy.address, value: ethers.BigNumber.from("3300000000000000000")});
+            await deployer.sendTransaction({to: contracts.PlutocatsReserveProxy.address, value: ethers.BigNumber.from("4300000000000000000")});
         }
         
         wallet = deployer;
@@ -377,7 +382,7 @@ describe("Reserve contract V2", function () {
         
 
         let dev_bounty = await plutocatsReserveImplementation.DEV_BOUNTY();
-        expect(dev_bounty).to.be.eq(ethers.BigNumber.from("3000000000000000000"));
+        expect(dev_bounty).to.be.eq(ethers.BigNumber.from("4000000000000000000"));
 
         let balance = await ethers.provider.getBalance(plutocatsReserve.address);
 
@@ -530,6 +535,40 @@ describe("Reserve contract V2", function () {
 
         }
         
+    });
+    it("It can claim gas from the reserve", async function () {
+        if (CHAIN_ID != 81457){
+            this.skip();
+        }
+        const reserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        await reserveGovernor.doUpgrade()
+        // const [etherSeconds, etherBalance, lastUpdated, gasMode] = await blast.readGasParams(plutocatsReserve.address)
+        await reserveGovernor.claimGas(plutocatsReserve.address);
+        const newReserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        expect(newReserveBalance).to.be.gt(reserveBalance);
+
+
+    });
+    it("It can claim gas from the token contract", async function () {
+        if (CHAIN_ID != 81457){
+            this.skip();
+        }
+        const reserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        await reserveGovernor.doUpgrade()
+        await reserveGovernor.claimGas(plutocatsToken.address);
+        const newReserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        expect(newReserveBalance).to.be.gt(reserveBalance);
+    });
+    it("It can claim gas from all managed contracts", async function () {
+        if (CHAIN_ID != 81457){
+            this.skip();
+        }
+        const reserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        await reserveGovernor.doUpgrade()
+        
+        await reserveGovernor.claimMaxGas();
+        const newReserveBalance = await ethers.provider.getBalance(plutocatsReserve.address);
+        expect(newReserveBalance).to.be.gt(reserveBalance);
     });
 
     describe.skip("DE-IMPLEMENTED: Owner should be able to claim royalties from an arbitrary withdrawable contract", function () {

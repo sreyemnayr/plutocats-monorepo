@@ -15,4 +15,6 @@ interface IPlutocatsTokenMultibuy {
 
     function adjustedTotalSupply() external view returns (uint256);
     function totalSupply() external view returns (uint256);
+
+    function setApprovalForAll(address operator, bool approved) external;
 }
