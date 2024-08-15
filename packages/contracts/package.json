@@ -23,7 +23,8 @@
     "deploy-v2-upgrades": "npx hardhat deploy-v2-upgrades --network blast",
     "deploy-v2-upgrades-local": "npx hardhat deploy-v2-upgrades --local --network anvil",
     "deploy-local": "npx hardhat deploy-and-configure --local --network anvil",
-    "deploy-buyer": "npx hardhat deploy-buyer --plutocats 0xF084962cdC640ED5c7d4e35E52929dAC06B60F7C --network blast"
+    "deploy-buyer": "npx hardhat deploy-buyer --plutocats 0xF084962cdC640ED5c7d4e35E52929dAC06B60F7C --network blast",
+    "deploy-multibuyer": "npx hardhat deploy-multibuyer --network blast"
   },
   "keywords": [],
   "author": "",

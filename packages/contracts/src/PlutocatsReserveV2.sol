@@ -53,5 +53,9 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
         // Withdraw royalties from WETH pool
         _withdrawEthFrom(wethAddress);
     }
+
+    function royaltiesAvailableForWithdrawal() public view returns (uint256) {
+        return IWithdrawableEther(blurPoolAddress).balanceOf(address(this)) + IWithdrawableEther(wethAddress).balanceOf(address(this));
+    }
 }
 
