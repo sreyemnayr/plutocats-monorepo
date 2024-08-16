@@ -15,12 +15,16 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
     address public constant DEV_ADDRESS = 0x3D2198fC3907e9D095c2D973D7EC3f42B7C62Dfc;
     uint256 public constant DEV_BOUNTY = 4 ether;
 
-    error NotImplemented();
-
+    /// @notice Constructor for the PlutocatsReserveV2 contract.
+    /// @dev Calls the constructor of the parent PlutocatsReserve contract and disables initializers.
     constructor() PlutocatsReserve() {
         _disableInitializers();
     }
 
+    /// @notice Initializes the contract with new addresses for Blur Pool and WETH, deposits initial royalties, and sends a bounty to the developer.
+    /// @param _blurPoolAddress The address of the Blur Pool contract.
+    /// @param _wethAddress The address of the WETH contract.
+    /// @dev Calls depositRoyalties to handle initial royalty deposits and sends a fixed bounty to the developer's address.
     function initializeV2(address _blurPoolAddress, address _wethAddress)
         public
         reinitializer(2) 
@@ -31,18 +35,14 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
         _sendETHInternal(payable(DEV_ADDRESS), DEV_BOUNTY);
     }
 
+    /// @dev Withdraws all available ETH from a specified contract that implements IWithdrawableEther.
+    /// @param withdrawable The address of the contract from which to withdraw ETH.
+    /// @notice This function will attempt to withdraw all ETH held by the contract at the address provided.
     function _withdrawEthFrom(address withdrawable) internal {
         uint256 balance = IWithdrawableEther(withdrawable).balanceOf(address(this));
         if (balance > 0) {
             IWithdrawableEther(withdrawable).withdraw(balance);
         }
-    }
-
-    // Withdraw ETH from a contract that implements IWithdrawableEther
-    // (has balanceOf(address) and withdraw(uint256) methods)
-    function withdrawEthFrom(address /* withdrawable */) external view onlyOwner {
-        revert NotImplemented();
-        // _withdrawEthFrom(withdrawable);
     }
 
     /// @notice Claims royalties from BLUR_POOL and WETH contracts and sends a portion to the founders' address.
@@ -54,6 +54,8 @@ contract PlutocatsReserveV2 is PlutocatsReserve {
         _withdrawEthFrom(wethAddress);
     }
 
+    /// @notice Calculates the total royalties available for withdrawal from both BLUR_POOL and WETH contracts.
+    /// @return The total amount of ETH available for withdrawal, summed from both contracts.
     function royaltiesAvailableForWithdrawal() public view returns (uint256) {
         return IWithdrawableEther(blurPoolAddress).balanceOf(address(this)) + IWithdrawableEther(wethAddress).balanceOf(address(this));
     }

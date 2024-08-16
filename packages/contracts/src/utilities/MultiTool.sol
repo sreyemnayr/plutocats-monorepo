@@ -5,12 +5,12 @@
 
 pragma solidity >=0.8.0;
 
-import {IPlutocatsTokenMultibuy} from "../interfaces/IPlutocatsTokenMultibuy.sol";
+import {IPlutocatsTokenMultiTool} from "../interfaces/IPlutocatsTokenMultiTool.sol";
 import {IBlast} from "../interfaces/IBlast.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IReserve} from "../interfaces/IReserve.sol";
 
-contract MarketMultiBuyer {
+contract PlutocatsMultiTool {
     using Address for address payable;
 
     event Minted(uint256 tokenId, address owner, uint256 price);
@@ -21,10 +21,10 @@ contract MarketMultiBuyer {
 
     IBlast public blast;
 
-    IPlutocatsTokenMultibuy public plutocats;
+    IPlutocatsTokenMultiTool public plutocats;
 
     constructor(address _plutocats, address _reserve) {
-        plutocats = IPlutocatsTokenMultibuy(_plutocats);
+        plutocats = IPlutocatsTokenMultiTool(_plutocats);
         blast = IBlast(BLAST_PREDEPLOY_ADDRESS);
         blast.configureClaimableGas();
         blast.configureGovernor(msg.sender);
@@ -44,28 +44,57 @@ contract MarketMultiBuyer {
     }
 
     function estimateMaxPricePer(uint256 amount) public view returns (uint256) {
+        if(amount == 0){
+            return 0;
+        }
+        if(amount == 1){
+            return plutocats.getPrice();
+        }
+
         uint256 timeSinceStart = block.timestamp - plutocats.MINT_START();
         uint256 totalSupply = plutocats.totalSupply();
-        uint256 vrgdaPrice = plutocats.getVRGDAPrice(toDaysWadUnsafe(timeSinceStart), totalSupply + amount);
-        uint256 minPrice = vrgdaPrice;
         uint256 adjTotalSupply = plutocats.adjustedTotalSupply();
         
-        minPrice = reserve.balance / adjTotalSupply;
-        if (vrgdaPrice < minPrice) {
+        return _estimatePriceForN(amount, timeSinceStart, totalSupply, adjTotalSupply);
+    }
+
+    function _estimatePriceForN(uint256 n, uint256 timeSinceStart, uint256 totalSupply, uint256 adjTotalSupply) internal view returns (uint256) {
+        uint256 vrgdaPrice = plutocats.getVRGDAPrice(toDaysWadUnsafe(timeSinceStart), totalSupply + n);
+        uint256 currentMinPrice = reserve.balance / adjTotalSupply;
+        uint256 minPrice = (reserve.balance + ((n-1)*currentMinPrice)) / (adjTotalSupply + n - 1);
+        if (vrgdaPrice < currentMinPrice) {
             return minPrice;
         }
         return vrgdaPrice;
     }
 
+    function estimateTotalCost(uint256 amount) public view returns (uint256 totalCost) {
+        if(amount == 0){
+            return 0;
+        }
+        if(amount == 1){
+            return plutocats.getPrice();
+        }
+        uint256 timeSinceStart = block.timestamp - plutocats.MINT_START();
+        uint256 totalSupply = plutocats.totalSupply();
+        uint256 adjTotalSupply = plutocats.adjustedTotalSupply();
+
+        for(uint256 n = 1; n <= amount; n++){
+            uint256 price = _estimatePriceForN(n, timeSinceStart, totalSupply, adjTotalSupply);
+            totalCost += price;
+        }
+        return totalCost;
+    }
+
     function estimateMaxAtCurrentPrice() public view returns (uint256) {
         uint256 price = plutocats.getPrice();
         uint256 priceAt = price;
-        uint256 count = 0;
-        while(priceAt == price) {
+        uint256 count = 1;
+        while(priceAt <= price) {
             count++;
             priceAt = estimateMaxPricePer(count);
         }
-        return count - 1;
+        return count;
     }
 
     function recycleMultiple(uint256 amount) external payable {
@@ -84,21 +113,18 @@ contract MarketMultiBuyer {
         payable(msg.sender).sendValue(msg.value);
     }
 
-    function buyMultiple(uint256 amount) external payable returns (uint256, uint256, uint256) {
+    function buyMultiple(uint256 amount) external payable returns (uint256 firstMintedId, uint256 lastMintedId, uint256 totalPrice) {
         uint256 price;
-        uint256 mintedId;
-        uint256 totalPrice = 0;
-        uint256 firstMintedId = 0;
 
         for(uint256 i = 0; i < amount; i++) {
             price = plutocats.getPrice();
             totalPrice += price;
-            mintedId = plutocats.mint{value: price}();
+            lastMintedId = plutocats.mint{value: price}();
             if (i == 0) {
-                firstMintedId = mintedId;
+                firstMintedId = lastMintedId;
             }
-            emit Minted(mintedId, msg.sender, price);
-            plutocats.transferFrom(address(this), msg.sender, mintedId);
+            emit Minted(lastMintedId, msg.sender, price);
+            plutocats.transferFrom(address(this), msg.sender, lastMintedId);
 
         }
         require(msg.value >= totalPrice, "payment too low");
@@ -108,7 +134,37 @@ contract MarketMultiBuyer {
             payable(msg.sender).sendValue(refund);
         }
 
-        return (firstMintedId, mintedId, totalPrice);
+        return (firstMintedId, lastMintedId, totalPrice);
+    }
+
+    function buy() external payable returns (uint256, uint256) {
+        uint256 price = plutocats.getPrice();
+        require(msg.value >= price, "payment too low");
+
+        uint256 mintedId = plutocats.mint{value: price}();
+        emit Minted(mintedId, msg.sender, price);
+
+        plutocats.transferFrom(address(this), msg.sender, mintedId);
+
+        uint256 refund = msg.value - price;
+        if (refund > 0) {
+            payable(msg.sender).sendValue(refund);
+        }
+
+        return (mintedId, price);
+    }
+
+    function getTokensOwnedBy(address owner) external view returns (uint256[] memory) {
+        uint256 ownerBalance = plutocats.balanceOf(owner);
+        uint256[] memory tokens = new uint256[](ownerBalance);
+        for(uint256 i = 0; i < ownerBalance; i++){
+            tokens[i] = plutocats.tokenOfOwnerByIndex(owner, i);
+        }
+        return tokens;
+    }
+
+    function quitValue() external view returns (uint256) {
+        return reserve.balance / plutocats.adjustedTotalSupply();
     }
 
     receive() external payable {}

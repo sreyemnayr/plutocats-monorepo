@@ -9,9 +9,9 @@
     "resolveJsonModule": true,
   },
   "include": [
-    "./tasks",
+    "./tasks/**/*.ts",
     "./hh",
-    "./test",
+    "./test/**/*.ts",
     "./typechain",
     "./abi/**/*.json",
   ],

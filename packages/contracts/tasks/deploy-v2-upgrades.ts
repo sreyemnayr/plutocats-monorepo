@@ -28,11 +28,6 @@ task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
         if(forked) {
             deployer = await ethers.getImpersonatedSigner(PLUTOCATS_DEPLOYER);
             
-            await network.provider.send("hardhat_setBalance", [
-                PLUTOCATS_DEPLOYER,
-                "0x56bc75e2d63100000", // 100 ETH should be plenty
-                ]);
-            
         } else {
             deployer = await ethers.getSigner(PLUTOCATS_DEPLOYER);
             
@@ -113,30 +108,6 @@ task('deploy-v2-upgrades', 'Deploys the governor and reserve v2')
             constructorArguments: [governor, reserveContract.address, blurPoolAddress, wethAddress],
             libraries: {},
         };
-
-        if (!onlylatest) {
-            const reserveFactoryA = await ethers.getContractFactory('PlutocatsReserveV2A', deployer);
-            const reserveContractA = await reserveFactoryA.deploy({gasPrice,});
-
-            const governorContractA = await governorFactory.deploy(governor, reserveContractA.address, blurPoolAddress, wethAddress, blastAddress, { gasPrice,});
-            await governorContractA.deployed();
-
-            deployment.PlutocatsReserveV2A = {
-                name: 'PlutocatsReserveV2A',
-                instance: reserveContractA,
-                address: reserveContractA.address,
-                constructorArguments: [],
-                libraries: {},
-            };
-
-            deployment.ReserveGovernorV2A = {
-                name: 'ReserveGovernorV2A',
-                instance: governorContractA,
-                address: governorContractA.address,
-                constructorArguments: [governor, reserveContractA.address, blurPoolAddress, wethAddress],
-                libraries: {},
-            };
-        }
 
         if (!local) {
             const result = await promptjs.get([

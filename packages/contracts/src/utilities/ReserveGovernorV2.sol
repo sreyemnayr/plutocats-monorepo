@@ -19,7 +19,6 @@ import {IGovernorMinimal} from "../interfaces/IGovernorMinimal.sol";
 import {ReserveGovernor} from "./ReserveGovernor.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IBlast} from "../interfaces/IBlast.sol";
-// import {IReserveV2} from "../interfaces/IReserveV2.sol";
 
 contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
     // Make immutable for posterity
@@ -29,6 +28,12 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
     bool public upgraded;
     address public immutable BLAST_ADDRESS;
 
+    /// @notice Constructor for the ReserveGovernorV2 contract.
+    /// @param _oldGovernor The address of the old governor contract.
+    /// @param _newReserveImplementation The address of the new reserve implementation.
+    /// @param _blurPoolAddress The address of the Blur pool.
+    /// @param _wethAddress The address of the WETH token.
+    /// @param _blastAddress The address of the Blast token.
     constructor(
         address _oldGovernor,
         address _newReserveImplementation,
@@ -52,18 +57,8 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
         IBlast(BLAST_ADDRESS).configureClaimableGas();
     }
 
-    // Allows governor owner to trigger a withdrawal of wrapped ETH from any arbitrary contract address
-    function withdrawEthFrom(address /* withdrawable */) public view onlyOwner {
-        revert NotImplemented();
-        // IReserveV2(address(reserve)).withdrawEthFrom(withdrawable);
-    }
 
-    // Performs upgrade on the reserve contract. 
-    // Note: The fact that we can do this is a bit of a problem,
-    // as it allows each/any approved governor to upgrade the reserve contract to a new implementation.
-    // If the approved proposer is also a majority (or at least majority of active) holder, they
-    // could potentially exploit this to their advantage (worst case: totally empty the reserve).
-    // This could be mitigated by freezing the upgradability of a PlutocatsReserve contract.
+    /// @notice Performs the upgrade on the reserve contract.
     function doUpgrade() external {
         if (upgraded) {
             revert AlreadyUpgraded();
@@ -79,20 +74,38 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
         );
     }
 
-    function claimGas(address _token) public governanceNotLocked {
-        IBlast(BLAST_ADDRESS).claimMaxGas(_token, address(reserve));
+    /// @notice Claims the maximum amount of gas from the specified token's Blast contract to the reserve.
+    /// @param _token The address of the token for which to claim gas.
+    /// @dev This function claims the gas if the accumulated etherSeconds are enough to claim for at least one month.
+    function _claimGas(address _token) internal governanceNotLocked {
+        // Do some checks to make sure it won't revert
+        (uint256 _etherSeconds, uint256 _etherBalance,,) = IBlast(BLAST_ADDRESS).readGasParams(_token);
+        if(_etherBalance > 0){
+            if(_etherSeconds / 2592000 > 0){
+                IBlast(BLAST_ADDRESS).claimMaxGas(_token, address(reserve));
+            }
+        }
     }
 
     /// @dev Claim max gas for the reserve and voting token
     function claimMaxGas() public governanceNotLocked {
-        claimGas(address(reserve));
-        claimGas(address(votingToken));
-        claimGas(address(this));
+        _claimGas(address(reserve));
+        _claimGas(address(votingToken));
+        _claimGas(address(this));
     }
 
-    /// Settle votes for configuring the reserve blast governor. If majority sentiment
-    /// is in favor, the governor is set and all future governance is disabled.
+    /// @notice Settle votes for configuring the reserve blast governor.
+    /// @param _newOwner The address to which the reserve and voting token ownership will be transferred.
+    /// @dev If majority sentiment is in favor, the governor is set and all future governance is disabled.
     function settleVotes(address _newOwner) external override governanceNotLocked {
+        /* 
+         *   With the exception of the following diff, this function is identical to the v1 ReserveGovernor
+         *
+         *   - reserve.setGovernor(_newOwner);
+         *   - votingToken.setGovernor(_newOwner);
+         *   + IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(reserve));
+         *   + IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(votingToken));
+        */
         Proposal storage p = proposed[_newOwner][proposalPeriod];
         uint256 totalVotes = p.forVotes + p.againstVotes;
 
@@ -123,9 +136,9 @@ contract ReserveGovernorV2 is IBootstrapV2, ReserveGovernor {
 
         if (support == 1 && quorumMet) {
             governanceLocked = true;
-            IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(votingToken));
             IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(reserve));
-            
+            IBlast(BLAST_ADDRESS).configureGovernorOnBehalf(_newOwner, address(votingToken));
+
             Ownable(address(reserve)).transferOwnership(_newOwner);
             Ownable(address(votingToken)).transferOwnership(_newOwner);
             Ownable(descriptor).transferOwnership(_newOwner);

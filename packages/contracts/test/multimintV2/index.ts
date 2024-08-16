@@ -1,7 +1,7 @@
 import chai from 'chai';
 import { ethers, run } from 'hardhat';
 import { solidity } from 'ethereum-waffle';
-import { PlutocatsToken, PlutocatsReserve, ReserveGovernor, PlutocatsDescriptor, ReserveGovernorV2, MockWithdrawable, MockWithdrawable__factory, MarketMultiBuyer } from '../../typechain';
+import { PlutocatsToken, PlutocatsReserve, ReserveGovernor, PlutocatsDescriptor, ReserveGovernorV2, MockWithdrawable, MockWithdrawable__factory, PlutocatsMultiTool } from '../../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { time, mine, reset } from "@nomicfoundation/hardhat-network-helpers";
 import { ContractName, UpgradedContractName, DeployedContract } from '../../tasks/types';
@@ -10,7 +10,7 @@ import config from '../../hardhat.config';
 chai.use(solidity);
 const { expect } = chai;
 
-describe("MultiBuyer", function () {
+describe("PlutocatsMultiTool", function () {
     let plutocatsToken: PlutocatsToken;
     let plutocatsReserve: PlutocatsReserve;
     let reserveGovernor: ReserveGovernor | ReserveGovernorV2;
@@ -19,7 +19,7 @@ describe("MultiBuyer", function () {
     let blur: MockWithdrawable;
     let weth: MockWithdrawable;
     let CHAIN_ID: number;
-    let multiminter: MarketMultiBuyer;
+    let multiminter: PlutocatsMultiTool;
 
     let contracts: Record<ContractName, DeployedContract>;
     let contractsV2: Record<UpgradedContractName, DeployedContract>;
@@ -132,14 +132,14 @@ describe("MultiBuyer", function () {
         let tokensOwned = (await plutocatsToken.balanceOf(deployer.address)).toNumber();
 
         const gasPrice = await ethers.provider.getGasPrice();
-        multiminter = await (await ethers.getContractFactory('MarketMultiBuyer', deployer)).deploy(plutocatsToken.address, contracts.PlutocatsReserveProxy.address, {gasPrice});
+        multiminter = await (await ethers.getContractFactory('PlutocatsMultiTool', deployer)).deploy(plutocatsToken.address, contracts.PlutocatsReserveProxy.address, {gasPrice});
             
         if(tokensOwned < enough){
             
             let amount = enough - tokensOwned;
             const price = await multiminter.estimateMaxPricePer(amount);
             
-            await plutocatsToken.mint({ value: price });
+            await plutocatsToken.connect(deployer).mint({ value: await plutocatsToken.getPrice() });
 
             while(amount > 0){
                 const max = Math.min(amount, 20);

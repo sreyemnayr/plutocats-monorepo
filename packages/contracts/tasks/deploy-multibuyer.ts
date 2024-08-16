@@ -1,6 +1,6 @@
 import { task, types } from 'hardhat/config';
 import { DeployedContract } from './types';
-import { MarketMultiBuyer } from '../typechain';
+import { PlutocatsMultiTool } from '../typechain';
 import promptjs from 'prompt';
 
 task('deploy-multibuyer', 'Deploys the market multi-buyer utility')
@@ -18,8 +18,8 @@ task('deploy-multibuyer', 'Deploys the market multi-buyer utility')
             reserve = process.env.PLUTOCATS_RESERVE_PROXY;
         }
 
-        const marketBuyerFactory = await ethers.getContractFactory('MarketMultiBuyer', deployer);
-        let marketBuyerContract: MarketMultiBuyer;
+        const marketBuyerFactory = await ethers.getContractFactory('PlutocatsMultiTool', deployer);
+        let marketBuyerContract: PlutocatsMultiTool;
 
         if(!deployment){
             console.log('deploy market multi-buyer');
@@ -50,11 +50,11 @@ task('deploy-multibuyer', 'Deploys the market multi-buyer utility')
             await marketBuyerContract.deployed();
 
         } else {
-            marketBuyerContract = await ethers.getContractAt('MarketMultiBuyer', deployment);
+            marketBuyerContract = await ethers.getContractAt('PlutocatsMultiTool', deployment);
         }
 
         await run('verify:verify', {
-            name: 'MarketMultiBuyer',
+            name: 'PlutocatsMultiTool',
             address: marketBuyerContract.address,
             constructorArguments: [plutocats, reserve],
             instance: marketBuyerContract,
